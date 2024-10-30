@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .project, .task {
+            border: 2px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .task-status {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Project Management</h1>
+
+<div id="projects"></div>
+
+<script>
+    // Sample data
+    const projects = [
+        {
+            name: "Project 1",
+            members: ["admin@example.com"],
+            tasks: [
+                {name: "Task 1", description:"This is task 1",deadline: "2024-11-01", status: "待分配" },
+                {name: "Task 2", description:"This is task 2",deadline: "2024-11-05", status: "待分配" }
+            ]
+        }
+    ];
+
+    function renderProjects() {
+        const projectsDiv = document.getElementById('projects');
+        projectsDiv.innerHTML = '';
+        projects.forEach((project, projectIndex) => {
+            const projectDiv = document.createElement('div');
+            projectDiv.className = 'project';
+            projectDiv.innerHTML = `
+                <h2>${project.name}</h2>
+                <p>Members: ${project.members.join(', ')}</p>
+                <button onclick="addTask(${projectIndex})">Add Task</button>
+                <div id="tasks-${projectIndex}">
+                    ${renderTasks(project.tasks, projectIndex)}
+                </div>
+            `;
+            projectsDiv.appendChild(projectDiv);
+        });
+    }
+
+    function renderTasks(tasks, projectIndex) {
+        return tasks.map((task, taskIndex) => `
+            <div class="task">
+                <p>${task.name}</p>
+                <p>${task.description}</p>
+                <p>Deadline: ${task.deadline}</p>
+                <p class="task-status">Status: ${task.status}</p>
+                ${task.status === "待分配" ? `<button onclick="assignTask(${projectIndex}, ${taskIndex})">Assign Task</button>` : ''}
+            </div>
+        `).join('');
+    }
+
+    function addTask(projectIndex) {
+        const name=prompt("Enter task name:");
+        const description = prompt("Enter task description:");
+        const deadline = prompt("Enter task deadline (YYYY-MM-DD):");
+        
+        if (name && description && deadline) {
+            projects[projectIndex].tasks.push({
+                name: name,
+                description: description,
+                deadline: deadline,
+                status: "待分配"
+            });
+            renderProjects();
+        }
+    }
+
+    function assignTask(projectIndex, taskIndex) {
+        const user = prompt("Enter user email to assign:");
+        if (user) {
+            projects[projectIndex].tasks[taskIndex].status = "开发中";
+            projects[projectIndex].members.push(user);
+            renderProjects();
+        }
+    }
+
+    renderProjects();
+</script>
+
+</body>
+</html>
