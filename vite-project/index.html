@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <title>当前项目任务</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        .status-pending {
+            color: orange;
+        }
+
+        .status-completed {
+            color: green;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>我的任务列表</h1>
+    <div id="taskList"></div>
+
+    <script>
+        // 获取当前用户名（这里需要根据你的实际情况设置）
+        const currentUsername = 'le';
+
+        // 读取CSV文件并显示任务
+        async function loadTasks() {
+            try {
+                const response = await fetch('./task.csv');
+                const data = await response.text();
+                const tasks = parseCSV(data);
+                displayTasks(tasks);
+            } catch (error) {
+                console.error('加载任务失败:', error);
+                document.getElementById('taskList').innerHTML = '加载任务失败，请稍后重试';
+            }
+        }
+
+        // 解析CSV数据
+        function parseCSV(csv) {
+            const lines = csv.split('\n');
+            const tasks = [];
+
+            // 跳过标题行
+            for (let i = 1; i < lines.length; i++) {
+                if (lines[i].trim() === '') continue;
+                const [tid, tname, description, pid, developer, status, file, deadline, email] = lines[i].split(',');
+                if (developer !== undefined) {
+                tasks.push({ tid, tname, description, pid, developer, status, file, deadline, email });
+        }
+            }
+            return tasks;
+        }
+
+        // 显示任务列表
+        function displayTasks(tasks) {
+            const filteredTasks = tasks.filter(task => task.developer.trim() === currentUsername);
+            console.log(filteredTasks)
+            if (filteredTasks.length === 0) {
+                document.getElementById('taskList').innerHTML = '暂无任务';
+                return;
+            }
+
+            const table = document.createElement('table');
+            table.innerHTML = `<tr>
+                        <th>任务ID</th>
+                        <th>任务名称</th>
+                        <th>描述</th>
+                        <th>项目ID</th>
+                        <th>状态</th>
+                        <th>文件</th>
+                        <th>截止日期</th>
+                        <th>联系邮箱</th>
+                        <th>操作</th>
+                    </tr>`;
+
+            filteredTasks.forEach(task => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${task.tid}</td>
+                        <td>${task.tname}</td>
+                        <td>${task.description}</td>
+                        <td>${task.pid}</td>
+                        <td class="status-${task.status.toLowerCase()}">${task.status}</td>
+                        <td>${task.file}</td>
+                        <td>${task.deadline}</td>
+                        <td>${task.email}</td>
+                        <td>
+                        <input type="text" class="file" value="">
+                       <button class="add">增加需要修改的代码文件</button>
+                       <button class="check">核验任务</button>
+                       </td>`
+                row.querySelector('.check').onclick = () => {
+                    console.log(task.tid)
+                    updateStatus(task.tid)
+                }
+                row.querySelector('.add').onclick = () => {
+                    const input = row.querySelector('.file')
+                    console.log(task.tid)
+                    updateFile(input.value,task.tid)
+                }
+                table.append(row)
+            });
+           
+
+
+            document.getElementById('taskList').append(table)
+        }
+        async function updateStatus(taskId) {
+            try {
+                const response1 = await fetch('./task.csv');
+                const data = await response1.text();
+                const response = await fetch('/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: data
+                });
+
+                if (response.ok) {
+                    alert('任务状态已更新！');
+                    // loadTasks(); // 重新加载任务列表
+                } else {
+                    alert('更新失败，请重试！');
+                }
+            } catch (error) {
+                console.error('更新状态失败:', error);
+                alert('更新失败，请重试！');
+            }
+        }
+        async function updateFile(string,taskId) {
+            try {
+                const response1 = await fetch('./task.csv');
+                const data = await response1.text();
+                const response = await fetch('/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: "tid,tname,description,pid,developer,status,file,deadline,email\n1,task1,写界面1,1,le,developing,"+string+",11.29,123@gmail.com\n2,task2,写界面2,1,le,developing,,11.30,123@gmail.com"
+                });
+                console.log(string)
+                if (response.ok) {
+                    alert('文件已更新！');
+                    // loadTasks(); // 重新加载任务列表
+                } else {
+                    alert('更新失败，请重试！');
+                }
+            } catch (error) {
+                console.error('更新失败:', error);
+                alert('更新失败，请重试！');
+            }
+        }
+        // 页面加载时执行
+        window.onload = loadTasks;
+    </script>
+</body>
+
+</html>
