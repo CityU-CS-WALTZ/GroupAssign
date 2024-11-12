@@ -1,8 +1,12 @@
 import * as vscode from 'vscode';
+import * as https from 'https';
 import * as path from 'path';
 import * as fs from 'fs';
 import { Config } from './config';
 import { GitGraphView } from './gitGraphView';
+//import { readUserData, User, validateUser } from './csv';
+import { testConnection,getUserTable, User } from './database';
+
 
 export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.commands.registerCommand('git-graph.view', () => {
@@ -29,32 +33,54 @@ export function activate(context: vscode.ExtensionContext) {
 	}));
 	
 
-	context.subscriptions.push(vscode.commands.registerCommand('group.view', () => {
+    let user: User | undefined = undefined ;
+
+    //user = readUserData()
+
+	context.subscriptions.push(vscode.commands.registerCommand('group.view', async() => {
 		const panel = vscode.window.createWebviewPanel('groupWebview', 'Group Webview', vscode.ViewColumn.One, {
 			enableScripts: true,
+            //localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'web')]
 		});
 		panel.webview.html = getWebviewContent();
 
+
+        // 调用 testConnection 函数
+        testConnection().then(() => {
+            //console.log('数据库连接测试完成');
+            vscode.window.showErrorMessage(`数据库连接测试完成`);
+        });
+
+         // 调用 getUserTable 函数并处理返回的用户数据
+        const users = await getUserTable();
+        vscode.window.showErrorMessage(`获取用户数据`);
+
+        //const users = readUserData("../resources/user.csv");
 		panel.webview.onDidReceiveMessage(
             message => {
 				switch (message.command) {
                     case 'login':
-                        if (message.username === 'admin1' && message.password === 'admin666') {
+                        //user = validateUser(users,message.username,message.password);
+                        user = users.find((u) => u.username === message.username && u.password === message.password);
+                        if (user && user.title=="admin") {
                             panel.webview.postMessage({ status: 'success', message: 'HELLO', isAdmin: true, username: message.username });
-                        } else if (message.username === 'user1' && message.password === 'user666') {
+                        }else if (user && user.title=="user") {
                             panel.webview.postMessage({ status: 'success', message: 'HELLO', isAdmin: false, username: message.username });
                         } else {
                             panel.webview.postMessage({ status: 'error', message: '请重新输入' });
                         }
                         return;
+                    case 'logout':
+                        user=undefined;
+                        return;
                     case 'openGroupWeb':
-                        openHtmlFile(context, 'groupWeb.html');
+                        openHtmlFile(context, 'groupWeb.html',null);
                         return;
                     case 'openProjectSpace':
-                        openHtmlFile(context, 'projectSpace.html');
+                        openHtmlFile(context, 'projectSpace.html',null);
                         return;
                     case 'openProjectManagement':
-                        openHtmlFile(context, 'projectManagement.html');
+                        openHtmlFile(context, 'projectManagement.html',null);
                         return;
                 }
             },
@@ -79,15 +105,73 @@ export function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() { }
 
-function openHtmlFile(context: vscode.ExtensionContext, fileName: string) {
+function openHtmlFile(context: vscode.ExtensionContext, fileName: string,user:User|null) {
+    if(! user ){
+        vscode.window.showErrorMessage(`用户状态异常`);
+        return;
+    }
     const htmlPath = path.join(context.extensionPath, 'web', fileName);
     if (fs.existsSync(htmlPath)) {
-        vscode.env.openExternal(vscode.Uri.file(htmlPath));
+        //vscode.env.openExternal(vscode.Uri.file(htmlPath));
+        //const uu=vscode.Uri.parse(htmlPath.toString() + `?username=${user.username}`);
+        //vscode.env.openExternal(uu);
+        // 构建带参数的URL
+        const fileUrl = vscode.Uri.file(htmlPath).with({
+            query: `username=${encodeURIComponent(user.username)}&title=${encodeURIComponent(user.title)}`
+        });
+        // 使用系统默认浏览器打开
+        vscode.env.openExternal(fileUrl);
     } else {
         vscode.window.showErrorMessage(`找不到 ${fileName} 文件`);
     }
 }
 
+function openCSVFile(context: vscode.ExtensionContext, fileName: string) {
+    const csvPath = path.join(context.extensionPath, 'resources', fileName);
+    if (fs.existsSync(csvPath)) {
+        vscode.env.openExternal(vscode.Uri.file(csvPath));
+    } else {
+        vscode.window.showErrorMessage(`找不到 ${fileName} 文件`);
+    }
+}
+
+// 添加下载文件的函数
+async function downloadFile(url: string, filePath: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+        // 确保目录存在
+        const dir = path.dirname(filePath);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir);
+        }
+
+        const file = fs.createWriteStream(filePath);
+        https.get(url, response => {
+            // 处理重定向
+            if (response.statusCode === 302 || response.statusCode === 301) {
+                if (response.headers.location) {
+                    downloadFile(response.headers.location, filePath)
+                        .then(resolve)
+                        .catch(reject);
+                    return;
+                }
+            }
+
+            response.pipe(file);
+            file.on('finish', () => {
+                file.close();
+                resolve();
+            });
+        }).on('error', err => {
+            fs.unlink(filePath, () => {});
+            reject(err);
+        });
+
+        file.on('error', err => {
+            fs.unlink(filePath, () => {});
+            reject(err);
+        });
+    });
+}
 
 function getWebviewContent() {
     return `<!DOCTYPE html>
@@ -210,6 +294,7 @@ function getWebviewContent() {
                 messageDiv.textContent = '';
                 usernameInput.value = 'admin1';
                 passwordInput.value = 'admin666';
+                 vscode.postMessage({ command: 'logout' });
             });
 
             window.addEventListener('message', event => {
