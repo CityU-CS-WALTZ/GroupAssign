@@ -4,8 +4,10 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { Config } from './config';
 import { GitGraphView } from './gitGraphView';
+import { getProjectSpaceContent } from './groupView'
+import { getWebviewContent } from './loginView'
 //import { readUserData, User, validateUser } from './csv';
-import { testConnection,getUserTable, User } from './database';
+import { testConnection,getProjectSpace,getUserTable,User,Task,Project, addProject, deleteProject, addTask, deleteTask } from './database';
 
 
 export function activate(context: vscode.ExtensionContext) {
@@ -34,6 +36,8 @@ export function activate(context: vscode.ExtensionContext) {
 	
 
     let user: User | undefined = undefined ;
+    let projects: Project[] ;
+    let tasks: Task[] ;
 
     //user = readUserData()
 
@@ -44,21 +48,56 @@ export function activate(context: vscode.ExtensionContext) {
 		});
 		panel.webview.html = getWebviewContent();
 
+        const updateWebview = () => {
+            //vscode.commands.executeCommand('workbench.action.webview.reloadWebviewAction');
+            panel.title = 'Project Space';
+            panel.webview.html = getWebviewContent();
+            vscode.commands.executeCommand('workbench.action.webview.reloadWebviewAction');
+          };
 
+        const projectSpace = () => {
+            getProjectSpace().then(result=> {
+                [projects,tasks] = result;
+              });
+            
+            panel.title = 'Project Space';
+            panel.webview.html = getProjectSpaceContent(projects, tasks);
+            vscode.commands.executeCommand('workbench.action.webview.reloadWebviewAction');
+            vscode.window.showInformationMessage(`页面刷新成功`);
+        };
+
+        // 创建任务列表的 HTML
+        const taskList = (selectedProjectId: number) => {
+            const filteredTasks = tasks.filter(task => task.pid === selectedProjectId);
+            return filteredTasks.map(task => `
+                <div class="task-item">
+                    <h4>任务 ID: ${task.tid}</h4>
+                    <p>任务名称: ${task.tname}</p>
+                    <p>任务描述: ${task.description}</p>
+                    <p>截止日期: ${task.deadline}</p>
+                    <p>状态: ${task.status}</p>
+                </div>
+            `).join('');
+        };
         // 调用 testConnection 函数
-        testConnection().then(() => {
-            //console.log('数据库连接测试完成');
-            vscode.window.showErrorMessage(`数据库连接测试完成`);
-        });
+        // testConnection().then(() => {
+        //     //console.log('数据库连接测试完成');
+        //     vscode.window.showInformationMessage(`数据库连接测试完成`);
+        // });
 
          // 调用 getUserTable 函数并处理返回的用户数据
         const users = await getUserTable();
-        vscode.window.showErrorMessage(`获取用户数据`);
+        vscode.window.showInformationMessage(`获取用户数据`);
+
 
         //const users = readUserData("../resources/user.csv");
 		panel.webview.onDidReceiveMessage(
             message => {
+                let time = 0;
 				switch (message.command) {
+                    case 'reload':
+                        vscode.commands.executeCommand('workbench.action.webview.reloadWebviewAction');
+                        return;
                     case 'login':
                         //user = validateUser(users,message.username,message.password);
                         user = users.find((u) => u.username === message.username && u.password === message.password);
@@ -72,15 +111,85 @@ export function activate(context: vscode.ExtensionContext) {
                         return;
                     case 'logout':
                         user=undefined;
-                        return;
-                    case 'openGroupWeb':
-                        openHtmlFile(context, 'groupWeb.html',null);
+                        panel.webview.html = getWebviewContent();
                         return;
                     case 'openProjectSpace':
-                        openHtmlFile(context, 'projectSpace.html',null);
+                        //openHtmlFile(context, 'projectSpace.html',user);
+                        projectSpace();
                         return;
-                    case 'openProjectManagement':
-                        openHtmlFile(context, 'projectManagement.html',null);
+                    case 'openUserSpace':
+                        updateWebview();
+                        return;
+                    case 'changeProject':
+                        const sp = projects.find(it => it.pid === message.pid);
+                        if(sp){
+                            console.log('下拉框项目改变');
+                            panel.webview.postMessage({ action: 'showProject',pid: sp.pid, pname:sp.pname, admin: sp.admin, email: sp.email});
+                        }
+                        return;
+                    case 'createProject':
+                        if(! user || user.title != "admin" ){ 
+                            vscode.window.showErrorMessage(`用户权限不足`);
+                            return;
+                        }
+                        time = new Date().getTime();
+                        const newp: Project = {
+                            pid: Math.round(time/1000) ,//毫秒的时间戳
+                            pname: message.name,
+                            admin: user.username,
+                            email: user.email,
+                            tasks: '',
+                            status: 0
+                        };
+                        
+                        addProject(newp).then();
+                        //panel.webview.postMessage({ action: 'createProject',pid: newp.pid, pname:newp.pname, admin: newp.admin, email: newp.email});
+                        projects.push(newp);
+                        projectSpace();
+                        return;
+                    case 'deleteProject':
+                        if(! user || user.title != "admin" ){ 
+                            vscode.window.showErrorMessage(`用户权限不足`);
+                            return;
+                        }
+                        deleteProject(message.pid).then();
+                        projects = projects.filter(p => p.pid != message.pid);
+                        projectSpace();
+                        return;
+                    case 'showTask':
+                
+                        panel.webview.postMessage({action:'showTask', text:taskList(message.pid)});
+                        return;
+                    case 'createTask':
+                        if(! user || user.title != "admin" ){ 
+                            vscode.window.showErrorMessage(`用户权限不足`);
+                            return;
+                        }
+                        time = new Date().getTime();
+                        const newt: Task = {
+                            tid: Math.round(time/1000) ,//毫秒的时间戳
+                            tname: message.name,
+                            description: message.description,
+                            pid: message.pid,
+                            developer: message.developer,
+                            deadline: message.deadline,
+                            status: 'unassigned'
+                        };
+                        console.log("新增Task:",newt);
+                        
+                        addTask(newt).then();
+                        //panel.webview.postMessage({ action: 'refreshPage'});
+                        tasks.push(newt);
+                        projectSpace();
+                        return;
+                    case 'deleteTask':
+                        if(! user || user.title != "admin" ){ 
+                            vscode.window.showErrorMessage(`用户权限不足`);
+                            return;
+                        }
+                        deleteTask(message.tid).then();
+                        tasks = tasks.filter(t => t.tid != message.tid)
+                        projectSpace();
                         return;
                 }
             },
@@ -105,8 +214,8 @@ export function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() { }
 
-function openHtmlFile(context: vscode.ExtensionContext, fileName: string,user:User|null) {
-    if(! user ){
+function openHtmlFile(context: vscode.ExtensionContext, fileName: string,user:User|undefined) {
+    if(user === undefined ){
         vscode.window.showErrorMessage(`用户状态异常`);
         return;
     }
@@ -135,187 +244,3 @@ function openCSVFile(context: vscode.ExtensionContext, fileName: string) {
     }
 }
 
-// 添加下载文件的函数
-async function downloadFile(url: string, filePath: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-        // 确保目录存在
-        const dir = path.dirname(filePath);
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir);
-        }
-
-        const file = fs.createWriteStream(filePath);
-        https.get(url, response => {
-            // 处理重定向
-            if (response.statusCode === 302 || response.statusCode === 301) {
-                if (response.headers.location) {
-                    downloadFile(response.headers.location, filePath)
-                        .then(resolve)
-                        .catch(reject);
-                    return;
-                }
-            }
-
-            response.pipe(file);
-            file.on('finish', () => {
-                file.close();
-                resolve();
-            });
-        }).on('error', err => {
-            fs.unlink(filePath, () => {});
-            reject(err);
-        });
-
-        file.on('error', err => {
-            fs.unlink(filePath, () => {});
-            reject(err);
-        });
-    });
-}
-
-function getWebviewContent() {
-    return `<!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>登录</title>
-        <style>
-            body { 
-                font-family: Arial, sans-serif; 
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 100vh;
-                margin: 0;
-            }
-            .container {
-                text-align: center;
-                padding: 20px;
-                border: 1px solid #ccc;
-                border-radius: 5px;
-                position: relative;
-                width: 300px;
-                height: 400px;
-            }
-            input, button { 
-                margin: 10px 0; 
-                padding: 5px; 
-                width: 200px;
-            }
-            #message { 
-                margin-top: 20px; 
-                font-weight: bold; 
-            }
-            .hidden {
-                display: none;
-            }
-            #userInfo {
-                position: absolute;
-                top: 10px;
-                right: 10px;
-            }
-            #logoutButton {
-                position: absolute;
-                bottom: 10px;
-                right: 10px;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div id="userInfo" class="hidden"></div>
-            <div id="loginForm">
-                <h2>登录</h2>
-                <input type="text" id="username" placeholder="账号" value="admin1">
-                <br>
-                <input type="password" id="password" placeholder="密码" value="admin666">
-                <br>
-                <button id="loginButton">登录</button>
-            </div>
-            <div id="message"></div>
-            <div id="loggedInContent" class="hidden">
-                <button id="groupWebButton">groupWeb</button>
-                <button id="projectSpaceButton">projectSpace</button>
-                <button id="projectManagementButton" class="hidden">projectManagement</button>
-            </div>
-            <button id="logoutButton" class="hidden">退出登录</button>
-        </div>
-
-        <script>
-            const vscode = acquireVsCodeApi();
-            const loginButton = document.getElementById('loginButton');
-            const usernameInput = document.getElementById('username');
-            const passwordInput = document.getElementById('password');
-            const messageDiv = document.getElementById('message');
-            const groupWebButton = document.getElementById('groupWebButton');
-            const projectSpaceButton = document.getElementById('projectSpaceButton');
-            const projectManagementButton = document.getElementById('projectManagementButton');
-            const loginForm = document.getElementById('loginForm');
-            const userInfo = document.getElementById('userInfo');
-            const logoutButton = document.getElementById('logoutButton');
-            const loggedInContent = document.getElementById('loggedInContent');
-
-            usernameInput.addEventListener('focus', () => {
-                if (usernameInput.value === 'admin1') usernameInput.value = '';
-            });
-
-            passwordInput.addEventListener('focus', () => {
-                if (passwordInput.value === 'admin666') passwordInput.value = '';
-            });
-
-            loginButton.addEventListener('click', () => {
-                const username = usernameInput.value;
-                const password = passwordInput.value;
-                vscode.postMessage({
-                    command: 'login',
-                    username: username,
-                    password: password
-                });
-            });
-
-            groupWebButton.addEventListener('click', () => {
-                vscode.postMessage({ command: 'openGroupWeb' });
-            });
-
-            projectSpaceButton.addEventListener('click', () => {
-                vscode.postMessage({ command: 'openProjectSpace' });
-            });
-
-            projectManagementButton.addEventListener('click', () => {
-                vscode.postMessage({ command: 'openProjectManagement' });
-            });
-
-            logoutButton.addEventListener('click', () => {
-                loginForm.classList.remove('hidden');
-                userInfo.classList.add('hidden');
-                loggedInContent.classList.add('hidden');
-                logoutButton.classList.add('hidden');
-                messageDiv.textContent = '';
-                usernameInput.value = 'admin1';
-                passwordInput.value = 'admin666';
-                 vscode.postMessage({ command: 'logout' });
-            });
-
-            window.addEventListener('message', event => {
-                const message = event.data;
-                messageDiv.textContent = message.message;
-                messageDiv.style.color = message.status === 'success' ? 'green' : 'red';
-
-                if (message.status === 'success') {
-                    loginForm.classList.add('hidden');
-                    userInfo.textContent = '当前用户: ' + message.username;
-                    userInfo.classList.remove('hidden');
-                    loggedInContent.classList.remove('hidden');
-                    logoutButton.classList.remove('hidden');
-                    if (message.isAdmin) {
-                        projectManagementButton.classList.remove('hidden');
-                    } else {
-                        projectManagementButton.classList.add('hidden');
-                    }
-                }
-            });
-        </script>
-    </body>
-    </html>`;
-}
