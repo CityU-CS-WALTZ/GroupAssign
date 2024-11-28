@@ -18,11 +18,11 @@ export function getProjectSpaceContent(projects: Project[], tasks: Task[]): stri
         const filteredTasks = tasks.filter(task => task.pid === selectedProjectId);
         return filteredTasks.map(task => `
             <div class="task-item">
-                <h4>任务 ID: ${task.tid}</h4>
-                <p>任务名称: ${task.tname}</p>
-                <p>任务描述: ${task.description}</p>
-                <p>截止日期: ${task.deadline}</p>
-                <p>状态: ${task.status}</p>
+                <h4>task ID: ${task.tid}</h4>
+                <p>task name: ${task.tname}</p>
+                <p>task desciption: ${task.description}</p>
+                <p>task deadline: ${task.deadline}</p>
+                <p>status: ${task.status}</p>
             </div>
         `).join('');
     };
@@ -32,7 +32,7 @@ export function getProjectSpaceContent(projects: Project[], tasks: Task[]): stri
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <title>项目任务管理系统</title>
+    <title>Porject Management System</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -115,7 +115,7 @@ export function getProjectSpaceContent(projects: Project[], tasks: Task[]): stri
 </head>
 <body>
     <div class="container">
-        <h1>项目任务管理系统</h1>
+        <h1>Porject Management System</h1>
         <br>
         <button id="reloadButton">Reload Webview</button>     
         <br>
@@ -123,60 +123,60 @@ export function getProjectSpaceContent(projects: Project[], tasks: Task[]): stri
         <!-- 创建项目部分 -->
         <div class="project-section">
             <h2>Project</h2>
-            <label for="projectSelect">选择项目:</label>
+            <label for="projectSelect">select project</label>
             <select id="projectSelect">
-                <option value="">请选择项目</option>
+                <option value="">Please select a project</option>
                 ${projectOptions}
             </select>
-            <div id="selectedProject" class="hidden">请选择一个项目</div>
+            <div id="selectedProject" class="hidden">select a project</div>
             <br>
-            <button id="deleteProjectButton" class="hidden">删除当前项目</button>
+            <button id="deleteProjectButton" class="hidden">delete this project</button>
 
             <h2>Create Project</h2>
             <form id="projectForm">
                 <div>
-                    <label>项目名称：</label>
+                    <label>project name</label>
                     <input type="text" id="projectName" required>
                 </div>
-                <button type="submit">创建项目</button>
+                <button type="submit">create project</button>
             </form>
         </div>
 
         <!-- 任务管理部分 -->
         <div class="project-section">
-            <h2>任务管理</h2>
+            <h2>task management</h2>
 
             <div id="taskManagement" style="display:none">
-                <h3>添加新任务</h3>
+                <h3>add new task</h3>
                 <form id="taskForm">
                     <div>
-                        <label>任务名称：</label>
+                        <label>Task name</label>
                         <input type="text" id="taskName" required>
                     </div>
                     <br>
                     <div>
-                        <label>任务描述：</label>
+                        <label>Task description</label>
                         <textarea id="taskDescription" required></textarea>
                     </div>
                     <br>
                     <div>
-                        <label>开发者名称：</label>
+                        <label>Developer</label>
                         <input type="text" id="taskDeveloper" required>
                     </div>
                     <br>                 
                     <div>
-                        <label>截止日期：</label>
+                        <label>deadline </label>
                         <input type="date" id="taskDeadline" required>
                     </div>
                     <br>
-                    <button type="submit">添加任务</button>
+                    <button type="submit">Add Task</button>
                     <br>
                     <div class="form-group" id="fileSection">
-                        <label for="fileInput">选择文件:</label>
+                        <label for="fileInput">Select file</label>
                         <input type="file" id="fileInput" name="fileInput" multiple>
                         <div id="fileList"></div>
                         <br>
-                        <button type="submit">提交文件</button>
+                        <button type="submit">Uoload file</button>
                     </div>
                     <br>
                     

@@ -12,7 +12,7 @@ export const dbConfig = {
 };
 
 export interface User {
-    id: number;
+    //id: number;
     userid: number;
     username: string;
     password: string;
@@ -84,7 +84,7 @@ export async function getUserTable(): Promise<User[]> {
 
         //const userArray: User[] = rows.map((user: any) => ({
         const userArray: User[] = (rows as mysql.RowDataPacket[]).map((user: mysql.RowDataPacket) => ({
-            id: user.userid,
+            //id: user.userid,
             userid: user.userid,
             username: user.username,
             password: user.password,
@@ -101,6 +101,34 @@ export async function getUserTable(): Promise<User[]> {
         process.exit(1); // 添加错误退出
     }
 }
+
+export async function addUser( newu: User): Promise<void>  {
+    try {
+        console.log('正在连接数据库...');
+        const connection = await mysql.createConnection(dbConfig);
+        console.log('数据库连接成功！');
+
+        //const sql: string = `INSERT INTO project (pid, pname, admin, email, tasks, status) VALUES (${newp.pid}, \'${newp.pname}\', \'${newp.admin}',\'${newp.email}\', 0 );`;
+        // 
+        // 插入项目数据的 SQL 语句
+        const sql = `INSERT INTO user (userid, username, password, title, email) 
+        VALUES (?, ?, ?, ?, ?)`;
+
+        // 执行插入操作
+        await connection.execute(sql, [newu.userid, newu.username, newu.password,newu.title,newu.email]);
+        console.log(`add user`);
+        
+
+        await connection.end();
+        console.log('close connect');
+
+        return;
+    } catch (error) {
+        console.error('数据库连接或查询出错：', error);
+        process.exit(1); // 添加错误退出
+    }
+}
+
 
 export async function getProjectSpace(): Promise<[Project[],Task[]]> {
     try {
@@ -284,6 +312,10 @@ export async function deleteTask(tid: number): Promise<void> {
 //     process.exit(1);
 //     });
 
+// to be accepted
+// developing
+// completed
+// unassigned
 addTask({
     tid: 41,
     tname: 'task4',
@@ -291,7 +323,7 @@ addTask({
     pid: 2,
     developer: '1',
     status: 'to be accepted',
-    deadline: new Date('2024-11-09')
+    deadline: new Date('2024-11-28')
 }).catch(error => {
     console.error('catch error: ',error);
     process.exit(1);

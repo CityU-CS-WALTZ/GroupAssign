@@ -7,7 +7,7 @@ import { GitGraphView } from './gitGraphView';
 import { getProjectSpaceContent } from './groupView'
 import { getWebviewContent } from './loginView'
 //import { readUserData, User, validateUser } from './csv';
-import { testConnection,getProjectSpace,getUserTable,User,Task,Project, addProject, deleteProject, addTask, deleteTask } from './database';
+import { getProjectSpace,getUserTable,User,Task,Project, addUser, addProject, deleteProject, addTask, deleteTask } from './database';
 
 
 export function activate(context: vscode.ExtensionContext) {
@@ -71,11 +71,11 @@ export function activate(context: vscode.ExtensionContext) {
             const filteredTasks = tasks.filter(task => task.pid === selectedProjectId);
             return filteredTasks.map(task => `
                 <div class="task-item">
-                    <h4>任务 ID: ${task.tid}</h4>
-                    <p>任务名称: ${task.tname}</p>
-                    <p>任务描述: ${task.description}</p>
-                    <p>截止日期: ${task.deadline}</p>
-                    <p>状态: ${task.status}</p>
+                    <h4>task ID: ${task.tid}</h4>
+                    <p>task name: ${task.tname}</p>
+                    <p>task description: ${task.description}</p>
+                    <p>deadline: ${task.deadline}</p>
+                    <p>status: ${task.status}</p>
                 </div>
             `).join('');
         };
@@ -102,17 +102,40 @@ export function activate(context: vscode.ExtensionContext) {
                         //user = validateUser(users,message.username,message.password);
                         user = users.find((u) => u.username === message.username && u.password === message.password);
                         if (user && user.title=="admin") {
-                            panel.webview.postMessage({ status: 'success', message: 'HELLO', isAdmin: true, username: message.username });
+                            panel.webview.postMessage({ command:'loginResponse',status: 'success', message: 'HELLO', isAdmin: true, username: message.username });
                         }else if (user && user.title=="user") {
-                            panel.webview.postMessage({ status: 'success', message: 'HELLO', isAdmin: false, username: message.username });
+                            panel.webview.postMessage({ command:'loginResponse', status: 'success', message: 'HELLO', isAdmin: false, username: message.username });
                         } else {
-                            panel.webview.postMessage({ status: 'error', message: '请重新输入' });
+                            panel.webview.postMessage({ command:'loginResponse', status: 'error', message: 'Please input again!' });
                         }
                         return;
                     case 'logout':
                         user=undefined;
                         panel.webview.html = getWebviewContent();
+                        vscode.commands.executeCommand('workbench.action.webview.reloadWebviewAction');
                         return;
+                    case 'register':
+                        user = users.find((u) => u.username === message.username);
+                        if(user){
+                            panel.webview.postMessage({ command:'registerResponse', status: 'fail' });
+                            return;
+                        }
+                        
+                        const newu: User = {
+                            userid:Math.round(time/1000) ,
+                            username: message.username,
+                            password: message.password,
+                            title: 'user',
+                            email: message.email,
+
+                        };
+                        addUser(newu).then();
+                        users.push(newu);
+                        panel.webview.postMessage({ command:'registerResponse', status: 'success' });
+                        panel.webview.html = getWebviewContent();
+                        vscode.commands.executeCommand('workbench.action.webview.reloadWebviewAction');
+                        return;
+
                     case 'openProjectSpace':
                         //openHtmlFile(context, 'projectSpace.html',user);
                         projectSpace();
@@ -129,7 +152,7 @@ export function activate(context: vscode.ExtensionContext) {
                         return;
                     case 'createProject':
                         if(! user || user.title != "admin" ){ 
-                            vscode.window.showErrorMessage(`用户权限不足`);
+                            vscode.window.showErrorMessage(`Permission limited!`);
                             return;
                         }
                         time = new Date().getTime();

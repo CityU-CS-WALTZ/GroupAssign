@@ -51,36 +51,65 @@ export function getWebviewContent() {
                 bottom: 10px;
                 right: 10px;
             }
+            .close-button {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                cursor: pointer;
+            }
         </style>
     </head>
     <body>
         <div class="container">
             <div id="userInfo" class="hidden"></div>
             <div id="loginForm">
-                <h2>登录</h2>
-                <input type="text" id="username" placeholder="账号" value="admin1">
+                <h2>LOGIN</h2>
+                <input type="text" id="username" placeholder="username" value="admin1">
                 <br>
-                <input type="password" id="password" placeholder="密码" value="admin666">
+                <input type="password" id="password" placeholder="password" value="admin666">
                 <br>
-                <button id="loginButton">登录</button>
+                <button id="loginButton">login</button>
+                <br>
+                <button id="registerLink">Register</button>
+            </div>
+                <div id="registerForm" class="hidden">
+                <span class="close-button" id="closeRegister">&times;</span>
+                <h2>REGISTER</h2>
+                <input type="text" id="regUsername" placeholder="username">
+                <br>
+                <input type="text" id="regEmail" placeholder="email">
+                <br>
+                <input type="password" id="regPassword" placeholder="password">
+                <br>
+                <input type="password" id="confirmPassword" placeholder="confirm password">
+                <br>
+                <button id="registerButton">Register</button>
             </div>
             <div id="message"></div>
             <div id="loggedInContent" class="hidden">
                 <button id="projectSpaceButton">projectSpace</button>
                 <button id="userSpaceButton">projectSpace</button>
             </div>
-            <button id="logoutButton" class="hidden">退出登录</button>
+            <button id="logoutButton" class="hidden">login out</button>
         </div>
 
         <script>
             const vscode = acquireVsCodeApi();
             const loginButton = document.getElementById('loginButton');
+            const registerLink = document.getElementById('registerLink');
+            const closeRegister = document.getElementById('closeRegister');
             const usernameInput = document.getElementById('username');
             const passwordInput = document.getElementById('password');
+            const regUsernameInput = document.getElementById('regUsername');
+            const regPasswordInput = document.getElementById('regPassword');
+            const regEmailInput = document.getElementById('regEmail');
+            const confirmPasswordInput = document.getElementById('confirmPassword');
+            const registerButton = document.getElementById('registerButton');
             const messageDiv = document.getElementById('message');
             const projectSpaceButton = document.getElementById('projectSpaceButton');
             const userSpaceButton = document.getElementById('userSpaceButton');
             const loginForm = document.getElementById('loginForm');
+            const registerForm = document.getElementById('registerForm');
             const userInfo = document.getElementById('userInfo');
             const logoutButton = document.getElementById('logoutButton');
             const loggedInContent = document.getElementById('loggedInContent');
@@ -102,6 +131,43 @@ export function getWebviewContent() {
                     password: password
                 });
             });
+
+            registerLink.addEventListener('click', () => {
+                loginForm.classList.add('hidden');
+                registerForm.classList.remove('hidden');
+            });
+
+            closeRegister.addEventListener('click', () => {
+                loginForm.classList.remove('hidden');
+                registerForm.classList.add('hidden');
+            });
+
+            registerButton.addEventListener('click', () => {
+                const regUsername = regUsernameInput.value;
+                const regPassword = regPasswordInput.value;
+                const regEmail = regEmailInput.value;
+                const confirmPassword = confirmPasswordInput.value;
+
+                if (regPassword !== confirmPassword) {
+                    messageDiv.textContent = 'Passwords do not match';
+                    messageDiv.style.color = 'red';
+                    return;
+                }
+                
+                if (!regEmail) {
+                    messageDiv.textContent = 'no email';
+                    messageDiv.style.color = 'red';
+                    return;
+                }
+
+                vscode.postMessage({
+                    command: 'register',
+                    username: regUsername,
+                    password: regPassword,
+                    email: regEmail
+                    });
+            });
+
 
 
             projectSpaceButton.addEventListener('click', () => {
@@ -128,9 +194,10 @@ export function getWebviewContent() {
                 messageDiv.textContent = message.message;
                 messageDiv.style.color = message.status === 'success' ? 'green' : 'red';
 
-                if (message.status === 'success') {
+                
+                if (message.command === 'registerResponse' && message.status === 'success') {
                     loginForm.classList.add('hidden');
-                    userInfo.textContent = '当前用户: ' + message.username;
+                    userInfo.textContent = 'account: ' + message.username;
                     userInfo.classList.remove('hidden');
                     loggedInContent.classList.remove('hidden');
                     logoutButton.classList.remove('hidden');
@@ -141,6 +208,16 @@ export function getWebviewContent() {
                         projectSpaceButton.classList.add('hidden');
                         userSpaceButton.classList.remove('hidden');
                     }
+                }else if (message.command === 'registerResponse') {
+
+                    if (message.status === 'success') {
+                        loginForm.classList.remove('hidden');
+                        registerForm.classList.add('hidden');
+                    }else if (message.status === 'fail') {
+                        messageDiv.textContent = 'Account already exists!';
+                        messageDiv.style.color = 'red';
+                    }
+
                 }
             });
         </script>
