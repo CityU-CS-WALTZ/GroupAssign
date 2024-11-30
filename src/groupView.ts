@@ -352,6 +352,8 @@ export function getProjectSpaceContent(groupSet: Group): string {
                     taskSection.innerHTML = message.text;
                     taskManagement.style.display = 'block';
 
+                }else if(message.action === 'refresh'){
+                    groupSet=
                 }
 
             });
@@ -372,7 +374,7 @@ export function getProjectSpaceContent(groupSet: Group): string {
             document.getElementById('commentSection').addEventListener('submit',function(event) {
                 event.preventDefault();
                 const taskID = document.getElementById('commentTaskID').value;
-                const body = document.getElementById('commentbody').value;
+                const body = document.getElementById('commentBody').value;
                 vscode.postMessage({ command: 'commentTask', tid: taskID, body:body });
             });
 

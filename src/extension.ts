@@ -176,6 +176,8 @@ export function activate(context: vscode.ExtensionContext) {
                         //panel.webview.postMessage({ action: 'createProject',pid: newp.pid, pname:newp.pname, admin: newp.admin, email: newp.email});
                         groupSet.projects.push(newp);
                         projectSpace();
+                        //panel.webview.postMessage({ action: 'refresh',body: groupSet});
+                        
                         return;
                     case 'deleteProject':
                         if(! user || user.title != "admin" ){ 
