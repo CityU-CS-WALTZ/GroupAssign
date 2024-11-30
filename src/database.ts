@@ -11,6 +11,13 @@ export const dbConfig = {
     connectTimeout: 10000
 };
 
+export interface Group{
+    projects: Project[];
+    tasks: Task[];
+    comments: Comment[];
+    files: File[];
+};
+
 export interface User {
     //id: number;
     userid: number;
@@ -21,8 +28,9 @@ export interface User {
 }
 
 export interface File {
+    id:number
     tid: number;
-    file: string;
+    filename: string;
 }
 
 export interface Task {
@@ -33,6 +41,14 @@ export interface Task {
     developer: string;
     status: string;
     deadline: Date;
+}
+
+export interface Comment {
+    id: number;
+    tid: number;
+    publisher: string;
+    body: string;
+    time: Date;
 }
 
 export interface Project {
@@ -130,7 +146,7 @@ export async function addUser( newu: User): Promise<void>  {
 }
 
 
-export async function getProjectSpace(): Promise<[Project[],Task[]]> {
+export async function getProjectSpace(): Promise<Group> {
     try {
         console.log('正在连接数据库...');
         const connection = await mysql.createConnection(dbConfig);
@@ -146,7 +162,7 @@ export async function getProjectSpace(): Promise<[Project[],Task[]]> {
         }
 
         //const userArray: User[] = rows.map((user: any) => ({
-        const projects: Project[] = (rows as mysql.RowDataPacket[]).map((r: mysql.RowDataPacket) => ({
+        const ps: Project[] = (rows as mysql.RowDataPacket[]).map((r: mysql.RowDataPacket) => ({
             pid: r.pid,
             pname: r.pname,
             admin: r.admin,
@@ -165,7 +181,7 @@ export async function getProjectSpace(): Promise<[Project[],Task[]]> {
         }
 
         //const userArray: User[] = rows.map((user: any) => ({
-        const tasks: Task[] = (rows as mysql.RowDataPacket[]).map((r: mysql.RowDataPacket) => ({
+        const ts: Task[] = (rows as mysql.RowDataPacket[]).map((r: mysql.RowDataPacket) => ({
             tid: r.tid,
             tname: r.tname,
             description: r.description,
@@ -176,11 +192,52 @@ export async function getProjectSpace(): Promise<[Project[],Task[]]> {
             deadline: r.deadline
         }));
 
+        // 查询
+        [rows, fields] = await connection.execute('SELECT * FROM comment');
+        console.log('测试查询结果:', rows);
+        
+        // 检查 rows 是否为数组
+        if (!Array.isArray(rows)) {
+            throw new Error('查询结果不是数组');
+        }
+
+        //const userArray: User[] = rows.map((user: any) => ({
+        const cs: Comment[] = (rows as mysql.RowDataPacket[]).map((r: mysql.RowDataPacket) => ({
+            id: r.id,
+            tid: r.tid,
+            publisher: r.publisher,
+            body: r.body,
+            time: r.time
+        }));
+
+        // 查询
+        [rows, fields] = await connection.execute('SELECT * FROM file');
+        console.log('测试查询结果:', rows);
+        
+        // 检查 rows 是否为数组
+        if (!Array.isArray(rows)) {
+            throw new Error('查询结果不是数组');
+        }
+
+        //const userArray: User[] = rows.map((user: any) => ({
+        const fs: File[] = (rows as mysql.RowDataPacket[]).map((r: mysql.RowDataPacket) => ({
+            id: r.id,
+            tid: r.tid,
+            filename: r.filename
+        }));
+
 
         await connection.end();
         console.log('数据库连接已关闭');
 
-        return [projects,tasks];
+        let gp : Group = {
+            projects: ps,
+            tasks: ts,
+            comments: cs,
+            files: fs
+        };
+
+        return gp;
     } catch (error) {
         console.error('数据库连接或查询出错：', error);
         process.exit(1); // 添加错误退出
@@ -261,6 +318,28 @@ export async function addTask(newt: Task): Promise<void> {
     }
 }
 
+export async function addComment(newt: Comment): Promise<void> {
+    try {
+        console.log('正在连接数据库...');
+        const connection = await mysql.createConnection(dbConfig);
+        console.log('数据库连接成功！');
+
+        // 插入任务数据的 SQL 语句
+        const sql = `INSERT INTO comment (id, tid, publisher, body, time) 
+                     VALUES (?, ?, ?, ?, ?)`;
+
+        // 执行插入操作
+        await connection.execute(sql, [newt.id, newt.tid, newt.publisher, newt.body, newt.time]);
+        console.log(`成功添加Comment`);
+
+        await connection.end();
+        console.log('数据库连接已关闭');
+    } catch (error) {
+        console.error('数据库连接或查询出错：', error);
+        process.exit(1); // 添加错误退出
+    }
+}
+
 export async function deleteTask(tid: number): Promise<void> {
     try {
         console.log('正在连接数据库...');
@@ -287,6 +366,25 @@ export async function deleteTask(tid: number): Promise<void> {
     }
 }
 
+export async function updateTask(tid: number,newDeveloper: string): Promise<void> {
+    try {
+        console.log('正在连接数据库...');
+        const connection = await mysql.createConnection(dbConfig);
+        console.log('数据库连接成功！');
+
+        // 插入任务数据的 SQL 语句
+        //UPDATE `project`.`task` SET `developer` = '1' WHERE `tid` = 1731575155
+        const sql = `UPDATE task SET developer = ? WHERE tid = ?`;
+        await connection.execute(sql, [newDeveloper, tid]);
+        console.log(`成功更新任务 (ID: ${tid}) 的开发者为: ${newDeveloper}`);
+
+        await connection.end();
+        console.log('数据库连接已关闭');
+    } catch (error) {
+        console.error('数据库连接或查询出错：', error);
+        process.exit(1); // 添加错误退出
+    }
+}
 
 // 直接调用并处理 Promise
 // getProjectSpace().catch(error => {
@@ -316,15 +414,15 @@ export async function deleteTask(tid: number): Promise<void> {
 // developing
 // completed
 // unassigned
-addTask({
-    tid: 41,
-    tname: 'task4',
-    description: 'test_2',
-    pid: 2,
-    developer: '1',
-    status: 'to be accepted',
-    deadline: new Date('2024-11-28')
-}).catch(error => {
-    console.error('catch error: ',error);
-    process.exit(1);
-});
+// addTask({
+//     tid: 41,
+//     tname: 'task4',
+//     description: 'test_2',
+//     pid: 2,
+//     developer: '1',
+//     status: 'to be accepted',
+//     deadline: new Date('2024-11-28')
+// }).catch(error => {
+//     console.error('catch error: ',error);
+//     process.exit(1);
+// });

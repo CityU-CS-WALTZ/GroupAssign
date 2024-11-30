@@ -40,7 +40,7 @@
 			},
 			{
 				"command": "group.view",
-				"title": "Group Space: View Group Space" 
+				"title": "Group Space: View Group Space"
 			}
 		],
 		"configuration": {
@@ -111,9 +111,12 @@
 		"postinstall": "node ./node_modules/vscode/bin/install"
 	},
 	"devDependencies": {
-		"typescript": "^3.3.1",
-		"vscode": "^1.1.28",
+		"@types/node": "^8.10.25",
 		"tslint": "^5.12.1",
-		"@types/node": "^8.10.25"
+		"typescript": "^3.3.1",
+		"vscode": "^1.1.28"
+	},
+	"dependencies": {
+		"csv-parse": "^5.5.6"
 	}
 }
