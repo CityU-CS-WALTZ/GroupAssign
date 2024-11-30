@@ -117,6 +117,7 @@
 		"vscode": "^1.1.28"
 	},
 	"dependencies": {
-		"csv-parse": "^5.5.6"
+		"csv-parse": "^5.5.6",
+		"express": "^4.21.1"
 	}
 }
