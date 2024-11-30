@@ -7,7 +7,8 @@ import { GitGraphView } from './gitGraphView';
 import { getProjectSpaceContent } from './groupView'
 import { getWebviewContent } from './loginView'
 //import { readUserData, User, validateUser } from './csv';
-import { getProjectSpace,getUserTable,User,Task,Project, addUser, addProject, deleteProject, addTask, deleteTask } from './database';
+import { GitGraphOperation } from './gitGraphOperation';
+import { getProjectSpace,getUserTable,User,Task,Project,File,Comment,Group, addUser, addProject, deleteProject, addTask, addComment, deleteTask } from './database';
 
 
 export function activate(context: vscode.ExtensionContext) {
@@ -36,10 +37,15 @@ export function activate(context: vscode.ExtensionContext) {
 	
 
     let user: User | undefined = undefined ;
-    let projects: Project[] ;
-    let tasks: Task[] ;
+    //let projects: Project[] ;
+    //let tasks: Task[] ;
+    let groupSet: Group;
 
     //user = readUserData()
+
+    context.subscriptions.push(vscode.commands.registerCommand('git-graph.operation', () => {
+		GitGraphOperation.createOrShow(context.extensionPath);
+	}));
 
 	context.subscriptions.push(vscode.commands.registerCommand('group.view', async() => {
 		const panel = vscode.window.createWebviewPanel('groupWebview', 'Group Webview', vscode.ViewColumn.One, {
@@ -57,18 +63,18 @@ export function activate(context: vscode.ExtensionContext) {
 
         const projectSpace = () => {
             getProjectSpace().then(result=> {
-                [projects,tasks] = result;
+                groupSet = result;
               });
             
             panel.title = 'Project Space';
-            panel.webview.html = getProjectSpaceContent(projects, tasks);
+            panel.webview.html = getProjectSpaceContent(groupSet);
             vscode.commands.executeCommand('workbench.action.webview.reloadWebviewAction');
             vscode.window.showInformationMessage(`页面刷新成功`);
         };
 
         // 创建任务列表的 HTML
         const taskList = (selectedProjectId: number) => {
-            const filteredTasks = tasks.filter(task => task.pid === selectedProjectId);
+            const filteredTasks = groupSet.tasks.filter(task => task.pid === selectedProjectId);
             return filteredTasks.map(task => `
                 <div class="task-item">
                     <h4>task ID: ${task.tid}</h4>
@@ -122,7 +128,7 @@ export function activate(context: vscode.ExtensionContext) {
                         }
                         
                         const newu: User = {
-                            userid:Math.round(time/1000) ,
+                            userid:Math.round(time/1000000) ,
                             username: message.username,
                             password: message.password,
                             title: 'user',
@@ -141,10 +147,11 @@ export function activate(context: vscode.ExtensionContext) {
                         projectSpace();
                         return;
                     case 'openUserSpace':
-                        updateWebview();
+                        GitGraphOperation.createOrShow(context.extensionPath);
+                        //updateWebview();
                         return;
                     case 'changeProject':
-                        const sp = projects.find(it => it.pid === message.pid);
+                        const sp = groupSet.projects.find(it => it.pid === message.pid);
                         if(sp){
                             console.log('下拉框项目改变');
                             panel.webview.postMessage({ action: 'showProject',pid: sp.pid, pname:sp.pname, admin: sp.admin, email: sp.email});
@@ -157,7 +164,7 @@ export function activate(context: vscode.ExtensionContext) {
                         }
                         time = new Date().getTime();
                         const newp: Project = {
-                            pid: Math.round(time/1000) ,//毫秒的时间戳
+                            pid: Math.round(time%1000000) ,//毫秒的时间戳
                             pname: message.name,
                             admin: user.username,
                             email: user.email,
@@ -167,7 +174,7 @@ export function activate(context: vscode.ExtensionContext) {
                         
                         addProject(newp).then();
                         //panel.webview.postMessage({ action: 'createProject',pid: newp.pid, pname:newp.pname, admin: newp.admin, email: newp.email});
-                        projects.push(newp);
+                        groupSet.projects.push(newp);
                         projectSpace();
                         return;
                     case 'deleteProject':
@@ -176,7 +183,7 @@ export function activate(context: vscode.ExtensionContext) {
                             return;
                         }
                         deleteProject(message.pid).then();
-                        projects = projects.filter(p => p.pid != message.pid);
+                        groupSet.projects = groupSet.projects.filter(p => p.pid != message.pid);
                         projectSpace();
                         return;
                     case 'showTask':
@@ -189,21 +196,26 @@ export function activate(context: vscode.ExtensionContext) {
                             return;
                         }
                         time = new Date().getTime();
+                        let st = 'unassigned';
+                        if(message.developer){
+                            st='developing';
+                        }
                         const newt: Task = {
-                            tid: Math.round(time/1000) ,//毫秒的时间戳
+                            tid: Math.round(time%1000000) ,//毫秒的时间戳
                             tname: message.name,
                             description: message.description,
                             pid: message.pid,
                             developer: message.developer,
                             deadline: message.deadline,
-                            status: 'unassigned'
+                            status: st
                         };
                         console.log("新增Task:",newt);
                         
                         addTask(newt).then();
                         //panel.webview.postMessage({ action: 'refreshPage'});
-                        tasks.push(newt);
-                        projectSpace();
+                        groupSet.tasks.push(newt);
+                        panel.webview.html = getProjectSpaceContent(groupSet);
+                        //projectSpace();
                         return;
                     case 'deleteTask':
                         if(! user || user.title != "admin" ){ 
@@ -211,8 +223,29 @@ export function activate(context: vscode.ExtensionContext) {
                             return;
                         }
                         deleteTask(message.tid).then();
-                        tasks = tasks.filter(t => t.tid != message.tid)
-                        projectSpace();
+                        groupSet.tasks = groupSet.tasks.filter(t => t.tid != message.tid)
+                        panel.webview.html = getProjectSpaceContent(groupSet);
+                        //projectSpace();
+                        return;
+                    case 'commentTask':
+                        if (!user) {
+                            vscode.window.showErrorMessage(`请先登录`);
+                            return;
+                        }
+                        time = new Date().getTime();
+                        
+                        const newc: Comment = {
+                            id: Math.round(time%1000000),
+                            tid: message.tid,
+                            body: message.body,
+                            publisher: user.username,
+                            time: new Date()
+                        };
+                        console.log("新增Comment:",newc)
+                        addComment(newc).then();
+                        groupSet.comments.push(newc);
+                        panel.webview.html = getProjectSpaceContent(groupSet);
+                        //projectSpace();
                         return;
                 }
             },

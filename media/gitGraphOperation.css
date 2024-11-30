@@ -1,0 +1,110 @@
+body {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+}
+.section {
+    flex: 1;
+    display: flex;
+    padding: 10px;
+    border-bottom: 1px solid #ccc;
+}
+.top-section {
+    display: flex;
+    flex-direction: row;
+}
+.assignment-list {
+    flex: 0.1; /* Adjust width to be smaller */
+    margin: 10px;
+    padding: 10px;
+    overflow-y: auto;
+}
+.assignment-details {
+    flex: 0.9; /* Adjust width to fill remaining space */
+    margin: 10px;
+    padding: 10px 30px;
+    overflow-y: auto;
+    border-left: 1px solid #5a5a5a; /* Line between sections */
+}
+.assignment-list ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+.assignment-list li {
+    margin: 5px 0;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.assignment-list li:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+.bottom-section {
+    flex-direction: row;
+    gap: 10px;
+}
+.box {
+    flex: 1;
+    margin: 10px 0;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    overflow-y: auto;
+}
+.box h2 {
+    margin: 0 0 10px 0;
+    font-size: 16px;
+}
+ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+}
+li {
+    margin: 5px 0;
+    padding: 5px 10px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+li:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+li:active {
+    background-color: var(--vscode-list-activeSelectionBackground);
+}
+li:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+}
+.directory-item {
+    margin: 5px 0;
+    padding: 5px 10px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    cursor: pointer;
+}
+.directory-item:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+.directory-folder {
+    cursor: pointer;
+}
+.directory-folder-content {
+    margin-left: 20px;
+}
+.droppable {
+    border: 2px dashed #ccc;
+    padding: 10px;
+    margin: 10px;
+    min-height: 50px;
+}

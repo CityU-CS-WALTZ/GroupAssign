@@ -68,7 +68,7 @@ export function getWebviewContent() {
                 <br>
                 <input type="password" id="password" placeholder="password" value="admin666">
                 <br>
-                <button id="loginButton">login</button>
+                <button id="loginButton">Login</button>
                 <br>
                 <button id="registerLink">Register</button>
             </div>
@@ -149,7 +149,7 @@ export function getWebviewContent() {
                 const confirmPassword = confirmPasswordInput.value;
 
                 if (regPassword !== confirmPassword) {
-                    messageDiv.textContent = 'Passwords do not match';
+                    messageDiv.textContent = 'passwords do not match';
                     messageDiv.style.color = 'red';
                     return;
                 }
@@ -195,7 +195,7 @@ export function getWebviewContent() {
                 messageDiv.style.color = message.status === 'success' ? 'green' : 'red';
 
                 
-                if (message.command === 'registerResponse' && message.status === 'success') {
+                if (message.command === 'loginResponse' && message.status === 'success') {
                     loginForm.classList.add('hidden');
                     userInfo.textContent = 'account: ' + message.username;
                     userInfo.classList.remove('hidden');
@@ -215,7 +215,6 @@ export function getWebviewContent() {
                         registerForm.classList.add('hidden');
                     }else if (message.status === 'fail') {
                         messageDiv.textContent = 'Account already exists!';
-                        messageDiv.style.color = 'red';
                     }
 
                 }
