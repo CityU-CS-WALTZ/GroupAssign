@@ -1,4 +1,4 @@
-# A Visual Studio Code Plugin
+# A Visual Studio Code Plugin About Project Management
 
 The project combines key project
 management functions, such as task creation, assignment, and
